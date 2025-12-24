@@ -4,6 +4,7 @@ const urlsToCache = [
     './index.html',
     './styles.css',
     './app.js',
+    './sw-register.js',
     './kar_rus.db'
 ];
 
