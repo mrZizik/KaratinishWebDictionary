@@ -1,4 +1,4 @@
-const CACHE_NAME = 'karata-dict-v1';
+const CACHE_NAME = 'karata-dict-v2';
 const urlsToCache = [
     './',
     './index.html',
@@ -18,6 +18,12 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    if (url.hostname === 'mc.yandex.ru') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+    
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
