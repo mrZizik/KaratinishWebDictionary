@@ -3,6 +3,11 @@ let currentPage = 1;
 const perPage = 100;
 let isLoading = false;
 let hasMore = true;
+let totalWords = 0;
+let isSearching = false;
+
+const DB_VERSION = 'v1.0';
+const DB_DATE = '25.12.2025';
 
 function escapeSql(str) {
     return str.replace(/'/g, "''").replace(/\\/g, "\\\\");
@@ -17,6 +22,15 @@ async function initDB() {
         const response = await fetch('kar_rus.db');
         const arrayBuffer = await response.arrayBuffer();
         db = new SQL.Database(new Uint8Array(arrayBuffer));
+        
+        const countResults = db.exec("SELECT COUNT(*) FROM kar_rus");
+        if (countResults.length > 0) {
+            totalWords = countResults[0].values[0][0];
+        }
+        
+        document.getElementById('dbVersion').textContent = `База словаря ${DB_VERSION} от ${DB_DATE}`;
+        updateWordCount();
+        
         loadWords();
         setupInfiniteScroll();
     } catch (error) {
@@ -27,9 +41,21 @@ async function initDB() {
     }
 }
 
+function updateWordCount() {
+    const wordCountEl = document.getElementById('wordCount');
+    if (isSearching) {
+        const rowCount = document.getElementById('results').children.length;
+        wordCountEl.textContent = `Количество слов: ${rowCount}`;
+    } else {
+        wordCountEl.textContent = `Общее количество слов: ${totalWords}`;
+    }
+}
+
 function resetAndLoad() {
     currentPage = 1;
     hasMore = true;
+    isSearching = false;
+    updateWordCount();
     loadWords();
 }
 
@@ -54,6 +80,9 @@ function loadWords() {
             document.getElementById('noResults').style.display = 'none';
             document.getElementById('loadingSpinner').style.display = 'none';
             document.getElementById('tableContainer').style.display = 'block';
+            if (!isSearching) {
+                updateWordCount();
+            }
         }
 
         const tbody = document.getElementById('results');
@@ -101,11 +130,25 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
         document.getElementById('searchLoading').style.display = 'none';
     }
 
-    searchTimeout = setTimeout(() => {
+        searchTimeout = setTimeout(() => {
         if (query) {
-            const escapedQuery = escapeSql(query);
-            const results = db.exec(`SELECT * FROM kar_rus WHERE word LIKE '%${escapedQuery}%' COLLATE NOCASE OR translation LIKE '%${escapedQuery}%' COLLATE NOCASE LIMIT 100`);
-            displayResults(results);
+            isSearching = true;
+            const queryLower = query.toLowerCase();
+            const allResults = db.exec("SELECT * FROM kar_rus");
+            if (allResults.length > 0) {
+                const columns = allResults[0].columns;
+                const values = allResults[0].values;
+                const filtered = values.filter(row => {
+                    const word = row[columns.indexOf('word')].toLowerCase();
+                    const translation = row[columns.indexOf('translation')].toLowerCase();
+                    return word.includes(queryLower) || translation.includes(queryLower);
+                });
+                const totalCount = filtered.length;
+                const displayData = filtered.slice(0, 100);
+                displayResults([{columns: columns, values: displayData, totalCount: totalCount}]);
+            } else {
+                displayResults([]);
+            }
         } else {
             resetAndLoad();
         }
@@ -126,6 +169,7 @@ function displayResults(results) {
         tableContainer.style.display = 'none';
         noResults.style.display = 'block';
         noResults.textContent = 'Слово не найдено';
+        document.getElementById('wordCount').textContent = 'Количество слов: 0';
         return;
     }
 
@@ -134,6 +178,7 @@ function displayResults(results) {
 
     const columns = results[0].columns;
     const values = results[0].values;
+    const totalCount = results[0].totalCount || values.length;
 
     const fragment = document.createDocumentFragment();
     values.forEach(row => {
@@ -152,6 +197,10 @@ function displayResults(results) {
 
     tbody.innerHTML = '';
     tbody.appendChild(fragment);
+    
+    if (isSearching) {
+        document.getElementById('wordCount').textContent = `Количество слов: ${totalCount}`;
+    }
 }
 
 initDB();
