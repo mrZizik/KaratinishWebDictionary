@@ -17,6 +17,7 @@ self.addEventListener('install', (event) => {
     );
 });
 
+// Stale-while-revalidate стратегия для лучшей производительности
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     if (url.hostname === 'mc.yandex.ru') {
@@ -27,15 +28,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request).then((response) => {
+                // Возвращаем кэшированную версию немедленно (stale)
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    // Обновляем кэш новой версией (revalidate)
                     return caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, response.clone());
-                        return response;
+                        cache.put(event.request, networkResponse.clone());
+                        return networkResponse;
                     });
                 });
+                
+                return response || fetchPromise;
             })
     );
 });
