@@ -177,8 +177,8 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
         if (query) {
             isSearching = true;
             try {
-                // Простой регистронезависимый поиск (теперь все данные в lowercase)
-                const escapedQuery = escapeSql(query.toLowerCase());
+                const normalizedQuery = query.replace(/[Ii|Ӏ]/g, '1').toLowerCase();
+                const escapedQuery = escapeSql(normalizedQuery);
                 const sql = `SELECT * FROM kar_rus WHERE word LIKE '%${escapedQuery}%' OR translation LIKE '%${escapedQuery}%' LIMIT 100`;
                 const results = db.exec(sql);
                 
