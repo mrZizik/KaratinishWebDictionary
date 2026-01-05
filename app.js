@@ -142,7 +142,7 @@ function loadWords() {
 
 function setupInfiniteScroll() {
     const debouncedLoadWords = debounce(() => {
-        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+        if (!isSearching && window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
             loadWords();
         }
     }, 100); // 100ms debounce
